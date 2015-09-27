@@ -3,8 +3,8 @@ package com.example.android.popularmovies;
 import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.support.v4.app.Fragment;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -77,7 +76,7 @@ public class MainActivityFragment extends Fragment {
         private final String LOG_TAG = FetchMovieInfo.class.getSimpleName();
 
         //private String[][] getMovieInfoFromJson(String movieJsonStr, int numMovies)
-        private String[] getMovieInfoFromJson(String movieJsonStr, int numMovies)
+        private String[] getMovieInfoFromJson(String movieJsonStr)
             throws JSONException {
 
             final String MOVIE_LIST = "results";
@@ -88,7 +87,7 @@ public class MainActivityFragment extends Fragment {
             JSONArray movieArray = movieJson.getJSONArray(MOVIE_LIST);
 
             //String[][] resultStrs = new String[numMovies][2]; //two dimensional array, storing movie ids and poster paths
-            String[]resultStrs = new String[numMovies]; //two dimensional array, storing movie ids and poster paths
+            String[]resultStrs = new String[movieArray.length()]; //two dimensional array, storing movie ids and poster paths
 
             for(int i = 0; i < movieArray.length(); i++) {
                 String movieId;
@@ -116,7 +115,7 @@ public class MainActivityFragment extends Fragment {
             BufferedReader reader = null;
 
             String movieJsonStr = null;
-            int numMovies = 12;
+            //int numMovies = 12;
             String sortBy = "popularity.desc";
 
             //get prefs here
@@ -127,10 +126,11 @@ public class MainActivityFragment extends Fragment {
                         "http://api.themoviedb.org/3/discover/movie?";
                 final String SORT_PARAM = "sort_by";
                 final String API_KEY =
-                        ""; //fill your own in
+                        "api_key";
 
                 Uri builtUri = Uri.parse(MOVIE_BASE_URL).buildUpon()
                         .appendQueryParameter(SORT_PARAM,sortBy)
+                        .appendQueryParameter(API_KEY,"") //add your own api key
                         .build();
 
                 URL url = new URL(builtUri.toString());
@@ -176,7 +176,8 @@ public class MainActivityFragment extends Fragment {
             }
 
             try {
-                return getMovieInfoFromJson(movieJsonStr,numMovies); //can only return one dimensional array
+                //return getMovieInfoFromJson(movieJsonStr,numMovies); //can only return one dimensional array
+                return getMovieInfoFromJson(movieJsonStr); //can only return one dimensional array
             } catch (JSONException e) {
                 Log.e(LOG_TAG, e.getMessage(), e);
                 e.printStackTrace();
