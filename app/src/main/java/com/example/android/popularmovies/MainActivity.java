@@ -14,7 +14,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -41,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     public String baseUrl = "http://image.tmdb.org/t/p/";
     public ArrayList<String> moviePosterPaths;
     String movieJsonStr = null;
+    String[] movieIds;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,16 +51,18 @@ public class MainActivity extends AppCompatActivity {
         //gridView.setAdapter(new ImageAdapter(this));
 
         FetchMovieInfo movieTask = new FetchMovieInfo();
+        if(moviePosterPaths == null) {
+            moviePosterPaths = new ArrayList<>();
+        }
         movieTask.execute();
 
-        /*if(movieJsonStr != null) {
-            moviePosterPaths =
-        }*/
+        //movieAdapter = new MovieAdapter(this, moviePosterPaths);
+        //moviesGrid.setAdapter(movieAdapter);
 
         moviesGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Toast.makeText(MainActivity.this,"Opening Movie Info " + position, Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this,"Opening Movie Info " + movieIds[position], Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -129,10 +131,18 @@ public class MainActivity extends AppCompatActivity {
             JSONObject movieJson = new JSONObject(movieJsonStr);
             JSONArray movieArray = movieJson.getJSONArray(MOVIE_LIST);
 
-            //String[][] resultStrs = new String[numMovies][2]; //two dimensional array, storing movie ids and poster paths
-            String[]resultStrs = new String[movieArray.length()]; //two dimensional array, storing movie ids and poster paths
+            if (moviePosterPaths == null) {
+                moviePosterPaths = new ArrayList<>();
+            }
 
-            for(int i = 0; i < movieArray.length(); i++) {
+            //String[][] resultStrs = new String[numMovies][2]; //two dimensional array, storing movie ids and poster paths
+            String[] resultStrs = new String[movieArray.length()]; //two dimensional array, storing movie ids and poster paths
+
+            if (movieIds == null) {
+                movieIds = new String[movieArray.length()];
+            }
+
+            for (int i = 0; i < movieArray.length(); i++) {
                 String movieId;
                 String posterPath;
 
@@ -142,7 +152,8 @@ public class MainActivity extends AppCompatActivity {
 
                 //resultStrs[i] = movieId + "_" + posterPath; //attempting to separate values with _
                 resultStrs[i] = movieId; //attempting to separate values with _
-                moviePosterPaths.add(i,baseUrl+posterPath);
+                moviePosterPaths.add(i, baseUrl + "/" + posterSize + "/" + posterPath);
+                movieIds[i] = movieId;
                 /*resultStrs[i][0] = movieId;
                 resultStrs[i][1] = posterPath;*/
             }
@@ -173,8 +184,8 @@ public class MainActivity extends AppCompatActivity {
                         "api_key";
 
                 Uri builtUri = Uri.parse(MOVIE_BASE_URL).buildUpon()
-                        .appendQueryParameter(SORT_PARAM,sortBy)
-                        .appendQueryParameter(API_KEY,"") //add your own api key
+                        .appendQueryParameter(SORT_PARAM, sortBy)
+                        .appendQueryParameter(API_KEY, "") //add your own api key
                         .build();
 
                 URL url = new URL(builtUri.toString());
@@ -185,15 +196,14 @@ public class MainActivity extends AppCompatActivity {
 
                 InputStream inputStream = urlConnection.getInputStream();
                 StringBuffer buffer = new StringBuffer();
-                if(inputStream == null)
-                {
+                if (inputStream == null) {
                     return null;
                 }
 
                 reader = new BufferedReader(new InputStreamReader(inputStream));
 
                 String line;
-                while((line = reader.readLine()) != null) {
+                while ((line = reader.readLine()) != null) {
                     buffer.append(line + "\n");
                 }
 
@@ -233,64 +243,17 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String[] result) {
 
-            if(movieJsonStr != null) {
+            /*if(movieJsonStr != null) {
 
-            }
-        }
-
-    }
-
-    public class ImageAdapter extends BaseAdapter {
-        private Context mContext;
-
-        public ImageAdapter(Context c) {
-            mContext = c;
-        }
-
-        public int getCount() {
-            return mThumbIds.length;
-        }
-
-        public Object getItem(int position) {
-            return null;
-        }
-
-        public long getItemId(int position) {
-            return 0;
-        }
-
-        // create a new ImageView for each item referenced by the Adapter
-        public View getView(int position, View convertView, ViewGroup parent) {
-            ImageView imageView;
-            if (convertView == null) {
-                // if it's not recycled, initialize some attributes
-                imageView = new ImageView(mContext);
-                imageView.setLayoutParams(new GridView.LayoutParams(85, 85));
-                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                imageView.setPadding(8, 8, 8, 8);
-            } else {
-                imageView = (ImageView) convertView;
+            }*/
+            if (moviePosterPaths == null) {
+                moviePosterPaths = new ArrayList<>();
             }
 
-
-            //imageView.setImageResource(mThumbIds[position]);
-            return imageView;
+            movieAdapter = new MovieAdapter(MainActivity.this, moviePosterPaths);
+            moviesGrid.setAdapter(movieAdapter);
         }
 
-        // references to our images
-        private Integer[] mThumbIds = {
-                /*R.drawable.sample_2, R.drawable.sample_3,
-                R.drawable.sample_4, R.drawable.sample_5,
-                R.drawable.sample_6, R.drawable.sample_7,
-                R.drawable.sample_0, R.drawable.sample_1,
-                R.drawable.sample_2, R.drawable.sample_3,
-                R.drawable.sample_4, R.drawable.sample_5,
-                R.drawable.sample_6, R.drawable.sample_7,
-                R.drawable.sample_0, R.drawable.sample_1,
-                R.drawable.sample_2, R.drawable.sample_3,
-                R.drawable.sample_4, R.drawable.sample_5,
-                R.drawable.sample_6, R.drawable.sample_7*/
-        };
     }
 
 
