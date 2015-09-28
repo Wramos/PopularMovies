@@ -2,9 +2,12 @@ package com.example.android.popularmovies;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -16,7 +19,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
-import android.widget.Toast;
 
 import com.squareup.picasso.Picasso;
 
@@ -62,7 +64,10 @@ public class MainActivity extends AppCompatActivity {
         moviesGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Toast.makeText(MainActivity.this,"Opening Movie Info " + movieIds[position], Toast.LENGTH_SHORT).show();
+                //Toast.makeText(MainActivity.this,"Opening Movie Info " + movieIds[position], Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(MainActivity.this, DetailActivity.class)
+                        .putExtra(Intent.EXTRA_TEXT,movieIds[position]);
+                startActivity(intent);
             }
         });
     }
@@ -84,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
 
@@ -114,6 +120,17 @@ public class MainActivity extends AppCompatActivity {
             return  convertView;
         }
 
+    }
+
+    private void updateMovies () {
+        FetchMovieInfo movieTask = new FetchMovieInfo();
+        movieTask.execute();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateMovies();
     }
 
     public class FetchMovieInfo extends AsyncTask<String, Void, String[]> {
@@ -171,7 +188,14 @@ public class MainActivity extends AppCompatActivity {
             BufferedReader reader = null;
 
             //int numMovies = 12;
-            String sortBy = "popularity.desc";
+            String sortBy; // = "popularity.desc";
+
+            SharedPreferences sharedPrefs =
+                    PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+            sortBy = sharedPrefs.getString(
+                    getString(R.string.sort_key),
+                    getString(R.string.sort_popularity_key)
+            );
 
             //get prefs here
 
