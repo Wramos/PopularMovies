@@ -52,6 +52,10 @@ public class MainActivity extends AppCompatActivity {
         moviesGrid = (GridView) findViewById(R.id.gridview);
         //gridView.setAdapter(new ImageAdapter(this));
 
+        if(!moviePosterPaths.isEmpty()) {
+            moviePosterPaths.clear();
+        }
+
         FetchMovieInfo movieTask = new FetchMovieInfo();
         if(moviePosterPaths == null) {
             moviePosterPaths = new ArrayList<>();
@@ -147,8 +151,10 @@ public class MainActivity extends AppCompatActivity {
 
             JSONObject movieJson = new JSONObject(movieJsonStr);
             JSONArray movieArray = movieJson.getJSONArray(MOVIE_LIST);
-
-            if (moviePosterPaths == null) {
+            if(!moviePosterPaths.isEmpty()) {
+                moviePosterPaths.clear();
+            }
+            else if (moviePosterPaths == null) {
                 moviePosterPaths = new ArrayList<>();
             }
 
