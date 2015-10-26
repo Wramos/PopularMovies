@@ -44,6 +44,13 @@ public class MainActivity extends AppCompatActivity {
     String movieJsonStr = null;
     String[] movieIds;
 
+    private String releaseDate;
+    private String movieOverview;
+    private String averageVote;
+    private String posterPath;
+    private String movieTitle;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,8 +58,10 @@ public class MainActivity extends AppCompatActivity {
 
         moviesGrid = (GridView) findViewById(R.id.gridview);
         //gridView.setAdapter(new ImageAdapter(this));
-
-        if(!moviePosterPaths.isEmpty()) {
+        if(moviePosterPaths == null) {
+            moviePosterPaths = new ArrayList<>();
+        }
+        else if(!moviePosterPaths.isEmpty()) {
             moviePosterPaths.clear();
         }
 
@@ -62,15 +71,29 @@ public class MainActivity extends AppCompatActivity {
         }
         movieTask.execute();
 
-        //movieAdapter = new MovieAdapter(this, moviePosterPaths);
-        //moviesGrid.setAdapter(movieAdapter);
-
         moviesGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 //Toast.makeText(MainActivity.this,"Opening Movie Info " + movieIds[position], Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(MainActivity.this, DetailActivity.class)
-                        .putExtra(Intent.EXTRA_TEXT,movieIds[position]);
+                Intent intent = new Intent(MainActivity.this, DetailActivity.class);
+                try {
+                    JSONObject movieJson = new JSONObject(movieJsonStr);
+                    JSONObject movieData = movieJson.getJSONArray("results").getJSONObject(position);
+                    posterPath = baseUrl + posterSize + movieData.getString("poster_path");
+                    releaseDate = "Release Date: " + movieData.getString("release_date");
+                    movieOverview = movieData.getString("overview");
+                    averageVote = "Average Vote: " + movieData.getString("vote_average");
+                    movieTitle = movieData.getString("original_title");
+                    //Log.d(this.getClass().getSimpleName(),"Parcel fields:\t"+posterPath+"\n\t"
+                      //      +releaseDate+"\n\t"+movieOverview+"\n\t"+averageVote+"\n\t"+movieTitle);
+                    MovieParcel mp = new MovieParcel(releaseDate,movieOverview,
+                            averageVote,posterPath,movieTitle);
+                    intent.putExtra("movie", mp);
+                }
+                catch(JSONException e){
+                    Log.e(this.getClass().getSimpleName(), "Error ", e);
+                    return;
+                }
                 startActivity(intent);
             }
         });
@@ -137,6 +160,8 @@ public class MainActivity extends AppCompatActivity {
         updateMovies();
     }
 
+
+
     public class FetchMovieInfo extends AsyncTask<String, Void, String[]> {
 
         private final String LOG_TAG = FetchMovieInfo.class.getSimpleName();
@@ -158,7 +183,6 @@ public class MainActivity extends AppCompatActivity {
                 moviePosterPaths = new ArrayList<>();
             }
 
-            //String[][] resultStrs = new String[numMovies][2]; //two dimensional array, storing movie ids and poster paths
             String[] resultStrs = new String[movieArray.length()]; //two dimensional array, storing movie ids and poster paths
 
             if (movieIds == null) {
@@ -173,12 +197,9 @@ public class MainActivity extends AppCompatActivity {
                 movieId = movieData.getString(MOVIE_ID);
                 posterPath = movieData.getString(MOVIE_POSTER);
 
-                //resultStrs[i] = movieId + "_" + posterPath; //attempting to separate values with _
                 resultStrs[i] = movieId; //attempting to separate values with _
                 moviePosterPaths.add(i, baseUrl + "/" + posterSize + "/" + posterPath);
                 movieIds[i] = movieId;
-                /*resultStrs[i][0] = movieId;
-                resultStrs[i][1] = posterPath;*/
             }
             return resultStrs;
         }
@@ -186,9 +207,6 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected String[] doInBackground(String... params) {
-            /*if(params.length == 0) {
-                return null;
-            }*/
 
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
@@ -273,9 +291,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String[] result) {
 
-            /*if(movieJsonStr != null) {
-
-            }*/
             if (moviePosterPaths == null) {
                 moviePosterPaths = new ArrayList<>();
             }
