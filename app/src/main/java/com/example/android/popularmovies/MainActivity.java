@@ -1,9 +1,11 @@
 package com.example.android.popularmovies;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -20,6 +22,8 @@ import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 
+import com.example.android.popularmovies.data.MovieContract;
+import com.example.android.popularmovies.data.MovieDbHelper;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONArray;
@@ -32,7 +36,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Vector;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -51,6 +58,14 @@ public class MainActivity extends AppCompatActivity {
     private String movieTitle;
 
 
+    private String MOVIE_LIST = "results";
+    private String MOVIE_ID = "id";
+    private String MOVIE_POSTER = "poster_path";
+    private String RELEASE_DATE = "release_date";
+    private String MOVIE_TITLE = "original_title";
+    private String AVERAGE_VOTE = "average_vote";
+    private String MOVIE_OVERVIEW = "overview";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,7 +80,8 @@ public class MainActivity extends AppCompatActivity {
             moviePosterPaths.clear();
         }
 
-        FetchMovieInfo movieTask = new FetchMovieInfo();
+        //FetchMovieInfo movieTask = new FetchMovieInfo();
+        FetchMovieTask movieTask = new FetchMovieTask(this,movieAdapter);
         if(moviePosterPaths == null) {
             moviePosterPaths = new ArrayList<>();
         }
@@ -85,12 +101,11 @@ public class MainActivity extends AppCompatActivity {
                     averageVote = "Average Vote: " + movieData.getString("vote_average");
                     movieTitle = movieData.getString("original_title");
                     //Log.d(this.getClass().getSimpleName(),"Parcel fields:\t"+posterPath+"\n\t"
-                      //      +releaseDate+"\n\t"+movieOverview+"\n\t"+averageVote+"\n\t"+movieTitle);
-                    MovieParcel mp = new MovieParcel(releaseDate,movieOverview,
-                            averageVote,posterPath,movieTitle);
+                    //      +releaseDate+"\n\t"+movieOverview+"\n\t"+averageVote+"\n\t"+movieTitle);
+                    MovieParcel mp = new MovieParcel(releaseDate, movieOverview,
+                            averageVote, posterPath, movieTitle);
                     intent.putExtra("movie", mp);
-                }
-                catch(JSONException e){
+                } catch (JSONException e) {
                     Log.e(this.getClass().getSimpleName(), "Error ", e);
                     return;
                 }
@@ -150,7 +165,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateMovies () {
-        FetchMovieInfo movieTask = new FetchMovieInfo();
+        //FetchMovieInfo movieTask = new FetchMovieInfo();
+        FetchMovieTask movieTask = new FetchMovieTask(this,movieAdapter);
         movieTask.execute();
     }
 
@@ -161,21 +177,56 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
+/*
     public class FetchMovieInfo extends AsyncTask<String, Void, String[]> {
 
-        private final String LOG_TAG = FetchMovieInfo.class.getSimpleName();
+        //private ArrayAdapter<String> movieAdapter;
+        //public String posterSize = "w185";
+        //public String baseUrl = "http://image.tmdb.org/t/p/";
+        //public ArrayList<String> moviePosterPaths;
+        //String movieJsonStr = null;
+        //String[] movieIds;
 
-        //private String[][] getMovieInfoFromJson(String movieJsonStr, int numMovies)
+    private String releaseDate;
+    private String movieOverview;
+    private String averageVote;
+    private String posterPath;
+    private String movieTitle;
+
+
+        private final String LOG_TAG = FetchMovieTask.class.getSimpleName();
+
+        //private ArrayAdapter<String> mMovieAdapter;
+        //private final Context mContext;
+
+        public FetchMovieInfo(Context context, ArrayAdapter<String> movieAdapter) {
+            mContext = context;
+            mMovieAdapter = movieAdapter;
+        }
+
+        private boolean DEBUG = true;
+
+        private String getReadableDateString(long time){
+            // Because the API returns a unix timestamp (measured in seconds),
+            // it must be converted to milliseconds in order to be converted to valid date.
+            Date date = new Date(time);
+            SimpleDateFormat format = new SimpleDateFormat("E, MMM d");
+            return format.format(date).toString();
+        }
+
+
         private String[] getMovieInfoFromJson(String movieJsonStr)
                 throws JSONException {
 
-            final String MOVIE_LIST = "results";
-            final String MOVIE_ID = "id";
-            final String MOVIE_POSTER = "poster_path";
 
+
+            String[] resultStrs;
             JSONObject movieJson = new JSONObject(movieJsonStr);
             JSONArray movieArray = movieJson.getJSONArray(MOVIE_LIST);
+
+            MovieDbHelper dbHelper = new MovieDbHelper(MainActivity.this);
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+
             if(!moviePosterPaths.isEmpty()) {
                 moviePosterPaths.clear();
             }
@@ -183,48 +234,100 @@ public class MainActivity extends AppCompatActivity {
                 moviePosterPaths = new ArrayList<>();
             }
 
-            String[] resultStrs = new String[movieArray.length()]; //two dimensional array, storing movie ids and poster paths
+            resultStrs = new String[movieArray.length()]; //two dimensional array, storing movie ids and poster paths
 
             if (movieIds == null) {
                 movieIds = new String[movieArray.length()];
             }
 
-            for (int i = 0; i < movieArray.length(); i++) {
+            try {
+
+                Vector<ContentValues> cVVector = new Vector<ContentValues>(movieArray.length());
+
                 String movieId;
                 String posterPath;
+                String releaseDate;
+                String movieOverview;
+                String averageVote;
+                String movieTitle;
+                resultStrs = new String[movieArray.length()];
+                for (int i = 0; i < movieArray.length(); i++) {
 
-                JSONObject movieData = movieArray.getJSONObject(i);
-                movieId = movieData.getString(MOVIE_ID);
-                posterPath = movieData.getString(MOVIE_POSTER);
+                final String MOVIE_LIST = "results";
+                final String MOVIE_ID = "id";
+                final String MOVIE_POSTER = "poster_path";
+                final String RELEASE_DATE = "release_date";
+                final String MOVIE_TITLE = "original_title";
+                final String AVERAGE_VOTE = "average_vote";
 
-                resultStrs[i] = movieId; //attempting to separate values with _
-                moviePosterPaths.add(i, baseUrl + "/" + posterSize + "/" + posterPath);
-                movieIds[i] = movieId;
+
+                    JSONObject movieData = movieArray.getJSONObject(i); //here we have everything in the json
+                    movieId = movieData.getString(MOVIE_ID);
+                    posterPath = movieData.getString(MOVIE_POSTER);
+                    movieTitle = movieData.getString(MOVIE_TITLE);
+                    averageVote = movieData.getString(AVERAGE_VOTE);
+                    movieOverview = movieData.getString(MOVIE_OVERVIEW);
+                    releaseDate = movieData.getString(RELEASE_DATE);
+
+                    //resultStrs[i] = movieId; //attempting to separate values with _
+                    moviePosterPaths.add(i, baseUrl + "/" + posterSize + "/" + posterPath);
+                    movieIds[i] = movieId;
+
+                    ContentValues movieValues = new ContentValues();
+
+                    movieValues.put(MovieContract.MovieEntry.COLUMN_MOVIE_KEY, movieId);
+                    movieValues.put(MovieContract.MovieEntry.COLUMN_POSTER_URL, posterPath);
+                    movieValues.put(MovieContract.MovieEntry.COLUMN_MOVIE_TITLE, movieTitle);
+                    movieValues.put(MovieContract.MovieEntry.COLUMN_AVERAGE_VOTE, averageVote);
+                    movieValues.put(MovieContract.MovieEntry.COLUMN_OVERVIEW, movieOverview);
+                    movieValues.put(MovieContract.MovieEntry.COLUMN_RELEASE_DATE, releaseDate);
+
+                    resultStrs[i] = movieId;
+                    //resultStrs[i] = movieId + "," + posterPath + "," + movieTitle + "," + averageVote
+                      //      + "," + movieOverview + "," + releaseDate;
+
+                    cVVector.add(movieValues);
+                }
+
+                if ( cVVector.size() > 0) {
+                    //bulk insert here to add to db
+                }
+
+                Log.d(LOG_TAG, "FetchMovieTask Complete. " + cVVector.size() + " Inserted");
+
+                return resultStrs;
+
+            } catch (JSONException e) {
+                Log.e(LOG_TAG, e.getMessage(), e);
+                e.printStackTrace();
             }
-            return resultStrs;
+            return null;
         }
-
 
         @Override
         protected String[] doInBackground(String... params) {
 
+            // If there's no zip code, there's nothing to look up.  Verify size of params.
+            if (params.length == 0) {
+                return null;
+            }
+            String locationQuery = params[0];
+
+            // These two need to be declared outside the try/catch
+            // so that they can be closed in the finally block.
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
 
-            //int numMovies = 12;
-            String sortBy; // = "popularity.desc";
-
             SharedPreferences sharedPrefs =
                     PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-            sortBy = sharedPrefs.getString(
+            String sortBy = sharedPrefs.getString(
                     getString(R.string.sort_key),
                     getString(R.string.sort_popularity_key)
             );
-
-            //get prefs here
-
             try {
-
+                // Construct the URL for the OpenWeatherMap query
+                // Possible parameters are avaiable at OWM's forecast API page, at
+                // http://openweathermap.org/API#forecast
                 final String MOVIE_BASE_URL =
                         "http://api.themoviedb.org/3/discover/movie?";
                 final String SORT_PARAM = "sort_by";
@@ -247,22 +350,25 @@ public class MainActivity extends AppCompatActivity {
                 if (inputStream == null) {
                     return null;
                 }
-
                 reader = new BufferedReader(new InputStreamReader(inputStream));
 
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    // Since it's JSON, adding a newline isn't necessary (it won't affect parsing)
+                    // But it does make debugging a *lot* easier if you print out the completed
+                    // buffer for debugging.
                     buffer.append(line + "\n");
                 }
 
                 if (buffer.length() == 0) {
+                    // Stream was empty.  No point in parsing.
                     return null;
                 }
-
                 movieJsonStr = buffer.toString();
-
             } catch (IOException e) {
                 Log.e(LOG_TAG, "Error ", e);
+                // If the code didn't successfully get the weather data, there's no point in attemping
+                // to parse it.
                 return null;
             } finally {
                 if (urlConnection != null) {
@@ -276,17 +382,17 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
+
             try {
-                //return getMovieInfoFromJson(movieJsonStr,numMovies); //can only return one dimensional array
-                return getMovieInfoFromJson(movieJsonStr); //can only return one dimensional array
+                return getMovieInfoFromJson(movieJsonStr);
             } catch (JSONException e) {
                 Log.e(LOG_TAG, e.getMessage(), e);
                 e.printStackTrace();
             }
-
+            // This will only happen if there was an error getting or parsing the forecast.
             return null;
-
         }
+
 
         @Override
         protected void onPostExecute(String[] result) {
@@ -299,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
             moviesGrid.setAdapter(movieAdapter);
         }
 
-    }
+    }*/
 
 
 }
